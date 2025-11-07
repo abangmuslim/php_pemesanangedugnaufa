@@ -111,8 +111,10 @@
             </p>
           </a>
           <ul class="nav nav-treeview">
-            <li class="nav-item"><a href="index.php?halaman=pemesanan" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Daftar pemesanan</p></a></li>
+            <li class="nav-item"><a href="index.php?halaman=daftarpemesanan" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Daftar pemesanan</p></a></li>
             <li class="nav-item"><a href="index.php?halaman=tambahpemesanan" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Tambah pemesanan</p></a></li>
+            <li class="nav-item"><a href="index.php?halaman=daftarpembayaran" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Daftar Pembayaran</p></a></li>
+            <li class="nav-item"><a href="index.php?halaman=prosespembayaran" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Proses Pembayaran</p></a></li>
           </ul>
         </li>
 

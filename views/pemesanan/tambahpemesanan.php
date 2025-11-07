@@ -43,7 +43,7 @@
                 while ($row = mysqli_fetch_assoc($pemesan)) :
                 ?>
                   <tr>
-                    <td><?= htmlspecialchars($row['nama_pemesan'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($row['nama_pemesan']) ?></td>
                     <td><?= htmlspecialchars($row['nama_asal'] ?? '-') ?></td>
                     <td><?= htmlspecialchars($row['hp_pemesan'] ?? '-') ?></td>
                     <td class="text-center">
@@ -66,20 +66,16 @@
               $admin = mysqli_query($koneksi, "SELECT id_admin, nama_admin FROM admin ORDER BY nama_admin ASC");
               while ($a = mysqli_fetch_assoc($admin)) :
               ?>
-                <option value="<?= $a['id_admin'] ?>"><?= htmlspecialchars($a['nama_admin'] ?? '') ?></option>
+                <option value="<?= $a['id_admin'] ?>"><?= htmlspecialchars($a['nama_admin']) ?></option>
               <?php endwhile; ?>
             </select>
           </div>
 
           <hr>
 
-          <!-- === INFORMASI TANGGAL PEMESANAN === -->
+          <!-- === METODE DAN STATUS PEMBAYARAN === -->
           <div class="row">
-            <div class="col-md-4">
-              <label><strong>Tanggal Pemesanan</strong></label>
-              <input type="date" name="tanggal_pemesanan" class="form-control" value="<?= date('Y-m-d'); ?>" readonly>
-            </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label><strong>Metode Pembayaran</strong></label>
               <select name="metode_pembayaran" class="form-control" required>
                 <option value="">-- Pilih Metode --</option>
@@ -87,7 +83,7 @@
                 <option value="transfer">Transfer</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label><strong>Status Pembayaran</strong></label>
               <select name="status_pembayaran" class="form-control" required>
                 <option value="belum bayar">Belum Bayar</option>
@@ -110,10 +106,9 @@
                     <?php
                     $gedung = mysqli_query($koneksi, "SELECT id_gedung, nama_gedung, harga FROM gedung ORDER BY nama_gedung ASC");
                     while ($g = mysqli_fetch_assoc($gedung)) :
-                      $nama = htmlspecialchars($g['nama_gedung'] ?? '');
                     ?>
                       <option value="<?= $g['id_gedung'] ?>" data-harga="<?= $g['harga'] ?>">
-                        <?= $nama ?> - Rp <?= number_format($g['harga'], 0, ',', '.') ?>
+                        <?= htmlspecialchars($g['nama_gedung']) ?> - Rp <?= number_format($g['harga'], 0, ',', '.') ?>
                       </option>
                     <?php endwhile; ?>
                   </select>
@@ -124,12 +119,14 @@
                 </div>
                 <div class="col-md-2">
                   <label>Tanggal Sewa</label>
-                  <input type="date" name="tanggal_sewa[]" class="form-control" required>
+                  <input type="date" name="tanggal_sewa[]" class="form-control" value="<?= date('Y-m-d') ?>" required>
                 </div>
+
                 <div class="col-md-2">
                   <label>Mulai</label>
-                  <input type="time" name="waktu_mulai[]" class="form-control" required>
+                  <input type="time" name="waktu_mulai[]" class="form-control" value="<?= date('H:i') ?>" required>
                 </div>
+
                 <div class="col-md-2">
                   <label>Selesai</label>
                   <input type="time" name="waktu_selesai[]" class="form-control" required>
@@ -179,10 +176,9 @@ document.addEventListener("DOMContentLoaded", function() {
       total += val;
     });
     totalSpan.textContent = 'Rp ' + total.toLocaleString('id-ID');
-    inputTotal.value = total.toFixed(2);
+    inputTotal.value = total;
   }
 
-  // saat memilih gedung, isi harga otomatis
   document.addEventListener('change', e => {
     if (e.target.classList.contains('selectGedung')) {
       const harga = e.target.selectedOptions[0].dataset.harga || 0;
@@ -193,7 +189,6 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // tambah gedung baru
   document.getElementById('btnTambahGedung').addEventListener('click', () => {
     const clone = template.cloneNode(true);
     clone.querySelectorAll('input').forEach(i => i.value = '');
@@ -201,7 +196,6 @@ document.addEventListener("DOMContentLoaded", function() {
     daftar.appendChild(clone);
   });
 
-  // hapus baris gedung
   document.addEventListener('click', e => {
     if (e.target.closest('.btnHapusGedung')) {
       const items = document.querySelectorAll('.gedung-item');

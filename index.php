@@ -112,11 +112,17 @@ $query = mysqli_query($koneksi, "SELECT * FROM admin");
               break;
 
             // Bagian pemesan
-            case "pemesanan":
-              include("views/pemesanan/pemesanan.php");
+            case "daftarpemesanan":
+              include("views/pemesanan/daftarpemesanan.php");
               break;
             case "tambahpemesanan":
               include("views/pemesanan/tambahpemesanan.php");
+              break;
+            case "daftarpembayaran":
+              include("views/pemesanan/daftarpembayaran.php");
+              break;
+            case "prosespembayaran":
+              include("views/pemesanan/prosespembayaran.php");
               break;
             case "editpemesanan":
               include("views/pemesanan/editpemesanan.php");

@@ -1,122 +1,139 @@
 <?php
-// File: db/dbpemesanan.php
 include '../koneksi.php';
 
 $proses = $_GET['proses'] ?? '';
 
+/**
+ * Helper: bersihkan angka format rupiah (1.500.000 -> 1500000)
+ */
+function cleanNumber($str) {
+    if ($str === null) return 0;
+    return floatval(str_replace(['.', ','], ['', '.'], $str));
+}
+
 if ($proses == 'tambah') {
-    // Ambil data dari form
-    $id_pemesan = $_POST['id_pemesan'];
-    $id_admin = 1; // bisa diganti dari session admin login
-    $tanggal_pemesanan = date('Y-m-d');
-    $metode_pembayaran = $_POST['metode_pembayaran'];
-    $total_pembayaran = $_POST['total_pembayaran'];
-    $status_pembayaran = ($metode_pembayaran == 'tunai') ? 'lunas' : 'belum bayar';
+    // ambil data utama
+    $id_pemesan = $_POST['id_pemesan'] ?? '';
+    $id_admin = $_POST['id_admin'] ?? '';
+    $metode_pembayaran = $_POST['metode_pembayaran'] ?? '';
+    $status_pembayaran = $_POST['status_pembayaran'] ?? '';
+    $total_pembayaran = cleanNumber($_POST['total_pembayaran'] ?? 0);
 
-    // Upload bukti pembayaran (jika ada)
-    $bukti = '';
-    if (!empty($_FILES['bukti_pembayaran']['name'])) {
-        $namaFile = time() . '_' . $_FILES['bukti_pembayaran']['name'];
-        $tmp = $_FILES['bukti_pembayaran']['tmp_name'];
-        $folder = "../views/pemesanan/buktipembayaran/";
-        if (!is_dir($folder)) mkdir($folder, 0777, true);
-        move_uploaded_file($tmp, $folder . $namaFile);
-        $bukti = $namaFile;
+    if (!$id_pemesan || !$id_admin) {
+        echo "<script>alert('Lengkapi semua data terlebih dahulu.');history.back();</script>";
+        exit;
     }
 
-    // Simpan ke tabel pemesanan
-    $q1 = mysqli_query($koneksi, "INSERT INTO pemesanan 
-        (id_pemesan, id_admin, tanggal_pemesanan, total_pembayaran, status_pembayaran, metode_pembayaran, bukti_pembayaran)
-        VALUES ('$id_pemesan', '$id_admin', '$tanggal_pemesanan', '$total_pembayaran', '$status_pembayaran', '$metode_pembayaran', '$bukti')
-    ");
+    // simpan pemesanan utama
+    $sql = "INSERT INTO pemesanan (id_pemesan, id_admin, metode_pembayaran, status_pembayaran, total_pembayaran)
+            VALUES (?, ?, ?, ?, ?)";
+    $stmt = $koneksi->prepare($sql);
+    $stmt->bind_param("iissd", $id_pemesan, $id_admin, $metode_pembayaran, $status_pembayaran, $total_pembayaran);
+    $stmt->execute();
+    $id_pemesanan = $stmt->insert_id;
+    $stmt->close();
 
-    // Ambil ID pemesanan yang baru dibuat
-    $id_pemesanan = mysqli_insert_id($koneksi);
+    // ambil array detail
+    $id_gedung_list = $_POST['id_gedung'] ?? [];
+    $tanggal_sewa_list = $_POST['tanggal_sewa'] ?? [];
+    $mulai_list = $_POST['waktu_mulai'] ?? [];
+    $selesai_list = $_POST['waktu_selesai'] ?? [];
+    $harga_list = $_POST['harga'] ?? [];
+    $keperluan_list = $_POST['keperluan'] ?? [];
 
-    // Simpan ke tabel detailpemesanan
-    $id_gedung = $_POST['id_gedung'];
-    $tanggal_sewa = $_POST['tanggal_sewa'];
-    $waktu_mulai = $_POST['waktu_mulai'];
-    $waktu_selesai = $_POST['waktu_selesai'];
-    $keperluan = $_POST['keperluan'];
-    $harga = $_POST['harga'];
-    $total_harga = $_POST['total_pembayaran'];
+    foreach ($id_gedung_list as $i => $id_gedung) {
+        $id_gedung = intval($id_gedung);
+        $harga = cleanNumber($harga_list[$i] ?? 0);
+        $tgl = mysqli_real_escape_string($koneksi, $tanggal_sewa_list[$i] ?? '');
+        $mulai = mysqli_real_escape_string($koneksi, $mulai_list[$i] ?? '');
+        $selesai = mysqli_real_escape_string($koneksi, $selesai_list[$i] ?? '');
+        $keperluan = mysqli_real_escape_string($koneksi, $keperluan_list[$i] ?? '');
 
-    $q2 = mysqli_query($koneksi, "INSERT INTO detailpemesanan 
-        (id_pemesanan, id_gedung, tanggal_sewa, waktu_mulai, waktu_selesai, keperluan, harga, total_harga)
-        VALUES ('$id_pemesanan', '$id_gedung', '$tanggal_sewa', '$waktu_mulai', '$waktu_selesai', '$keperluan', '$harga', '$total_harga')
-    ");
-
-    if ($q1 && $q2) {
-        echo "<script>alert('Data pemesanan berhasil disimpan');window.location='../index.php?halaman=pemesanan';</script>";
-    } else {
-        echo "<script>alert('Gagal menyimpan data pemesanan');history.back();</script>";
+        $q = "INSERT INTO detailpemesanan
+              (id_pemesanan, id_gedung, tanggal_sewa, waktu_mulai, waktu_selesai, keperluan, harga, total_harga)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $koneksi->prepare($q);
+        $stmt->bind_param("iisssddd", $id_pemesanan, $id_gedung, $tgl, $mulai, $selesai, $keperluan, $harga, $harga);
+        $stmt->execute();
+        $stmt->close();
     }
 
-} elseif ($proses == 'edit') {
-    $id_pemesanan = $_POST['id_pemesanan'];
-    $id_gedung = $_POST['id_gedung'];
-    $tanggal_sewa = $_POST['tanggal_sewa'];
-    $waktu_mulai = $_POST['waktu_mulai'];
-    $waktu_selesai = $_POST['waktu_selesai'];
-    $keperluan = $_POST['keperluan'];
-    $metode_pembayaran = $_POST['metode_pembayaran'];
-    $total_pembayaran = $_POST['total_pembayaran'];
-    $status_pembayaran = $_POST['status_pembayaran'];
+    echo "<script>alert('Data pemesanan berhasil disimpan!');window.location='../index.php?halaman=daftarpemesanan';</script>";
+    exit;
+}
 
-    // Upload bukti baru jika diubah
-    $bukti = $_POST['bukti_lama'];
-    if (!empty($_FILES['bukti_pembayaran']['name'])) {
-        $namaFile = time() . '_' . $_FILES['bukti_pembayaran']['name'];
-        $tmp = $_FILES['bukti_pembayaran']['tmp_name'];
-        $folder = "../views/pemesanan/buktipembayaran/";
-        if (!is_dir($folder)) mkdir($folder, 0777, true);
-        move_uploaded_file($tmp, $folder . $namaFile);
-        $bukti = $namaFile;
+elseif ($proses == 'edit') {
+    $id_pemesanan = $_POST['id_pemesanan'] ?? '';
+    $id_pemesan = $_POST['id_pemesan'] ?? '';
+    $id_admin = $_POST['id_admin'] ?? '';
+    $metode_pembayaran = $_POST['metode_pembayaran'] ?? '';
+    $status_pembayaran = $_POST['status_pembayaran'] ?? '';
+    $total_pembayaran = cleanNumber($_POST['total_pembayaran'] ?? 0);
+
+    if (!$id_pemesanan || !$id_pemesan || !$id_admin) {
+        echo "<script>alert('Lengkapi semua data terlebih dahulu.');history.back();</script>";
+        exit;
     }
 
-    // Update pemesanan
-    $q1 = mysqli_query($koneksi, "UPDATE pemesanan SET 
-        metode_pembayaran='$metode_pembayaran',
-        total_pembayaran='$total_pembayaran',
-        status_pembayaran='$status_pembayaran',
-        bukti_pembayaran='$bukti'
-        WHERE id_pemesanan='$id_pemesanan'
-    ");
+    // update pemesanan utama
+    $sql = "UPDATE pemesanan SET id_pemesan=?, id_admin=?, metode_pembayaran=?, status_pembayaran=?, total_pembayaran=? WHERE id_pemesanan=?";
+    $stmt = $koneksi->prepare($sql);
+    $stmt->bind_param("iissdi", $id_pemesan, $id_admin, $metode_pembayaran, $status_pembayaran, $total_pembayaran, $id_pemesanan);
+    $stmt->execute();
+    $stmt->close();
 
-    // Update detail
-    $q2 = mysqli_query($koneksi, "UPDATE detailpemesanan SET 
-        id_gedung='$id_gedung',
-        tanggal_sewa='$tanggal_sewa',
-        waktu_mulai='$waktu_mulai',
-        waktu_selesai='$waktu_selesai',
-        keperluan='$keperluan',
-        harga='$total_pembayaran',
-        total_harga='$total_pembayaran'
-        WHERE id_pemesanan='$id_pemesanan'
-    ");
+    // hapus detail lama
+    $koneksi->query("DELETE FROM detailpemesanan WHERE id_pemesanan = '$id_pemesanan'");
 
-    if ($q1 && $q2) {
-        echo "<script>alert('Data pemesanan berhasil diperbarui');window.location='../index.php?halaman=pemesanan';</script>";
-    } else {
-        echo "<script>alert('Gagal memperbarui data');history.back();</script>";
+    // insert ulang detail
+    $id_gedung_list = $_POST['id_gedung'] ?? [];
+    $tanggal_sewa_list = $_POST['tanggal_sewa'] ?? [];
+    $mulai_list = $_POST['waktu_mulai'] ?? [];
+    $selesai_list = $_POST['waktu_selesai'] ?? [];
+    $harga_list = $_POST['harga'] ?? [];
+    $keperluan_list = $_POST['keperluan'] ?? [];
+
+    foreach ($id_gedung_list as $i => $id_gedung) {
+        $id_gedung = intval($id_gedung);
+        $harga = cleanNumber($harga_list[$i] ?? 0);
+        $tgl = mysqli_real_escape_string($koneksi, $tanggal_sewa_list[$i] ?? '');
+        $mulai = mysqli_real_escape_string($koneksi, $mulai_list[$i] ?? '');
+        $selesai = mysqli_real_escape_string($koneksi, $selesai_list[$i] ?? '');
+        $keperluan = mysqli_real_escape_string($koneksi, $keperluan_list[$i] ?? '');
+
+        $q = "INSERT INTO detailpemesanan
+              (id_pemesanan, id_gedung, tanggal_sewa, waktu_mulai, waktu_selesai, keperluan, harga, total_harga)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $koneksi->prepare($q);
+        $stmt->bind_param("iisssddd", $id_pemesanan, $id_gedung, $tgl, $mulai, $selesai, $keperluan, $harga, $harga);
+        $stmt->execute();
+        $stmt->close();
     }
 
-} elseif ($proses == 'hapus') {
-    $id_pemesanan = $_GET['id'];
+    echo "<script>alert('Data pemesanan berhasil diperbarui!');window.location='../index.php?halaman=daftarpemesanan';</script>";
+    exit;
+}
 
-    // Hapus detail terlebih dahulu
-    mysqli_query($koneksi, "DELETE FROM detailpemesanan WHERE id_pemesanan='$id_pemesanan'");
-    // Hapus utama
-    $hapus = mysqli_query($koneksi, "DELETE FROM pemesanan WHERE id_pemesanan='$id_pemesanan'");
+elseif ($proses == 'hapus') {
+    $id_pemesanan = intval($_GET['id'] ?? 0);
+    if ($id_pemesanan <= 0) {
+        echo "<script>alert('ID pemesanan tidak valid');history.back();</script>";
+        exit;
+    }
+
+    $koneksi->query("DELETE FROM detailpemesanan WHERE id_pemesanan = '$id_pemesanan'");
+    $hapus = $koneksi->query("DELETE FROM pemesanan WHERE id_pemesanan = '$id_pemesanan'");
 
     if ($hapus) {
-        echo "<script>alert('Data pemesanan berhasil dihapus');window.location='../index.php?halaman=pemesanan';</script>";
+        echo "<script>alert('Data pemesanan berhasil dihapus');window.location='../index.php?halaman=daftarpemesanan';</script>";
     } else {
-        echo "<script>alert('Gagal menghapus data');history.back();</script>";
+        $err = mysqli_error($koneksi);
+        echo "<script>alert('Gagal menghapus data pemesanan!\\nMySQL error: " . addslashes($err) . "');history.back();</script>";
     }
+    exit;
+}
 
-} else {
+else {
     echo "Aksi tidak dikenali.";
 }
 ?>
